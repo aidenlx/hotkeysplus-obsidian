@@ -3,6 +3,7 @@ import {
   MarkdownView,
   Plugin
 } from "obsidian";
+import toggleLists from "./list";
 
 export default class HotkeysPlus extends Plugin {
   onInit() { }
@@ -25,7 +26,7 @@ export default class HotkeysPlus extends Plugin {
     this.addCommand({
       id: "toggle-bullet-number",
       name: "Toggle line to bulleted or numbered lists",
-      callback: () => this.toggleLists(),
+      editorCallback: toggleLists,
       hotkeys: [
         {
           modifiers: ["Mod", "Shift"],
@@ -210,11 +211,6 @@ export default class HotkeysPlus extends Plugin {
     return this.toggleElement(re, this.replaceTodoElement);
   }
 
-  toggleLists() {
-    const re = /(^\s*|^\t*)(-\s\[ \]\s|-\s\[x\]\s|\*\s|-\s|\d*\.\s|\*\s|\b|^)([^\n\r]*)/gim;
-    return this.toggleElement(re, this.replaceListElement);
-  }
-
   toggleBlockQuote() {
     const re = />\s|^/gim;
     return this.toggleElement(re, this.replaceBlockQuote);
@@ -223,18 +219,6 @@ export default class HotkeysPlus extends Plugin {
   toggleEmbed() {
     const re = /\S*\[\[/gim;
     return this.toggleElement(re, this.replaceEmbed);
-  }
-
-  replaceListElement(match: string, spaces: string, startText: string, sentence: string) {
-    if (startText === "- ") {
-      return spaces + "1. " + sentence;
-    } else if (startText === "") {
-      return spaces + "- " + sentence;
-    } else if (startText === "1. ") {
-      return spaces + "" + sentence;
-    } else {
-      return spaces + "- " + sentence;
-    }
   }
 
   replaceBlockQuote(startText: string) {
