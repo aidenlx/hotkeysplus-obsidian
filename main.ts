@@ -1,15 +1,16 @@
-import {
-  Editor,
-  MarkdownView,
-  Plugin
-} from "obsidian";
+import { Editor, MarkdownView, Plugin } from "obsidian";
 import toggleLists from "./list";
+import { DEFAULT_SETTINGS, HotkeysPlusSettings, HotkeysPlusSettingTab } from "./settings";
 
 export default class HotkeysPlus extends Plugin {
-  onInit() { }
+  settings: HotkeysPlusSettings = DEFAULT_SETTINGS;
 
-  onload() {
+  onInit() {}
+
+  async onload() {
     console.log("Loading Hotkeys++ plugin");
+    await this.loadSettings();
+    this.addSettingTab(new HotkeysPlusSettingTab(this));
 
     this.addCommand({
       id: "better-toggle-todo",
@@ -26,7 +27,7 @@ export default class HotkeysPlus extends Plugin {
     this.addCommand({
       id: "toggle-bullet-number",
       name: "Toggle line to bulleted or numbered lists",
-      editorCallback: toggleLists,
+      editorCallback: toggleLists(this),
       hotkeys: [
         {
           modifiers: ["Mod", "Shift"],
@@ -71,30 +72,30 @@ export default class HotkeysPlus extends Plugin {
     });
 
     this.addCommand({
-      id: 'insert-line-above',
-      name: 'Insert line above current line',
+      id: "insert-line-above",
+      name: "Insert line above current line",
       callback: () => this.insertLine("above"),
     });
     this.addCommand({
-      id: 'insert-line-below',
-      name: 'Insert line below current line',
+      id: "insert-line-below",
+      name: "Insert line below current line",
       callback: () => this.insertLine("below"),
     });
 
     this.addCommand({
-      id: 'clear-current-line',
-      name: 'Clear current line',
+      id: "clear-current-line",
+      name: "Clear current line",
       callback: () => this.clearCurrentLine(),
     });
   }
 
-  clearCurrentLine(): void{
+  clearCurrentLine(): void {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) return;
 
     const editor = view.editor;
     const lineNumber = editor.getCursor().line;
-    editor.setLine(lineNumber, "")
+    editor.setLine(lineNumber, "");
   }
 
   insertLine(mode: "above" | "below"): void {
@@ -106,23 +107,33 @@ export default class HotkeysPlus extends Plugin {
     const currentLineText = editor.getLine(lineNumber);
     let newLineText = "";
     if (currentLineText.trim().startsWith("- ")) {
-      newLineText = currentLineText.substring(0, currentLineText.indexOf("- ") + 2);
+      newLineText = currentLineText.substring(
+        0,
+        currentLineText.indexOf("- ") + 2
+      );
     }
     for (let i = 1; i < 30; i++) {
       if (currentLineText.trim().startsWith(i.toString() + ". ")) {
         let correction: number;
-        if (mode == "above")
-          correction = -1;
-        else
-          correction = 1;
-        newLineText = currentLineText.substring(0, currentLineText.indexOf(i.toString() + ". ")) + (i + correction).toString() + ". ";
+        if (mode == "above") correction = -1;
+        else correction = 1;
+        newLineText =
+          currentLineText.substring(
+            0,
+            currentLineText.indexOf(i.toString() + ". ")
+          ) +
+          (i + correction).toString() +
+          ". ";
       }
     }
     if (mode == "above") {
       editor.replaceRange(newLineText + "\n", { line: lineNumber, ch: 0 });
       editor.setSelection({ line: lineNumber, ch: newLineText.length });
     } else {
-      editor.replaceRange("\n" + newLineText, { line: lineNumber, ch: currentLineText.length });
+      editor.replaceRange("\n" + newLineText, {
+        line: lineNumber,
+        ch: currentLineText.length,
+      });
       editor.setSelection({ line: lineNumber + 1, ch: newLineText.length });
     }
   }
@@ -142,8 +153,8 @@ export default class HotkeysPlus extends Plugin {
 
     const editor = view.editor;
     const selectedText = this.getSelectedText(editor);
-    let newString = selectedText.content.trim().replace(/(\r\n|\n|\r)/gm, ' ');
-    newString = newString.replace(/  +/gm, ' ');
+    let newString = selectedText.content.trim().replace(/(\r\n|\n|\r)/gm, " ");
+    newString = newString.replace(/  +/gm, " ");
     editor.replaceRange(newString, selectedText.start, selectedText.end);
   }
 
@@ -207,7 +218,8 @@ export default class HotkeysPlus extends Plugin {
   }
 
   toggleTodos() {
-    const re = /(^\s*|^\t*)(-\s\[ \]\s|-\s\[x\]\s|\*\s|-\s|\d*\.\s|\*\s|\b|^)([^\n\r]*)/gim;
+    const re =
+      /(^\s*|^\t*)(-\s\[ \]\s|-\s\[x\]\s|\*\s|-\s|\d*\.\s|\*\s|\b|^)([^\n\r]*)/gim;
     return this.toggleElement(re, this.replaceTodoElement);
   }
 
@@ -234,16 +246,19 @@ export default class HotkeysPlus extends Plugin {
   replaceEmbed(startText: string) {
     if (startText === "![[") {
       return "[[";
-    }
-    else if (startText === "[[") {
+    } else if (startText === "[[") {
       return "![[";
-    }
-    else {
+    } else {
       return "";
     }
   }
 
-  replaceTodoElement(match: string, spaces: string, startText: string, sentence: string) {
+  replaceTodoElement(
+    match: string,
+    spaces: string,
+    startText: string,
+    sentence: string
+  ) {
     if (startText === "- [ ] ") {
       return spaces + "- [x] " + sentence;
     } else if (startText === "- [x] ") {
@@ -251,5 +266,13 @@ export default class HotkeysPlus extends Plugin {
     } else {
       return spaces + "- [ ] " + sentence;
     }
+  }
+
+  async loadSettings() {
+    this.settings = { ...this.settings, ...(await this.loadData()) };
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
   }
 }
